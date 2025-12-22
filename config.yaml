@@ -1,0 +1,70 @@
+# MQTT Broker 配置
+mqtt:
+  broker_address: "47.109.57.5"
+  broker_port: 1883
+  keep_alive: 60
+  # 如果需要认证，取消注释并填写
+  username: "uavlijia"
+  password: "yy889750"
+
+  # 设备ID
+  dev_id: "sam3-device-001"
+
+  # 心跳配置
+  heartbeat_interval: 10  # 心跳间隔（秒）
+  heartbeat_topic: "/ai/devstate"
+
+  # 主题前缀
+  topic_prefix: "/ai/sam3"
+
+  # 各服务主题配置
+  topics:
+    # AutoLabel 服务
+    label_service:
+      subscribe_suffix: "/AutoLabel"  # 订阅: /ai/sam3/{dev_id}/AutoLabel
+      publish_suffix: "/AutoLabel_Res"  # 发布: /ai/sam3/{dev_id}/AutoLabel_Res
+
+    # GeoLabel 服务
+    geo_service:
+      subscribe_suffix: "/GeoLabel"  # 订阅: /ai/sam3/{dev_id}/GeoLabel
+      publish_suffix: "/GeoLabel_Res"  # 发布: /ai/sam3/{dev_id}/GeoLabel_Res
+
+    # ChangeDetection 服务 (新增)
+    change_detection_service:
+      subscribe_suffix: "/ChangeDetect"  # 订阅: /ai/sam3/{dev_id}/ChangeDetect
+      publish_suffix: "/ChangeDetect_Res"  # 发布: /ai/sam3/{dev_id}/ChangeDetect_Res
+
+# AI 模型配置（公共部分）
+ai:
+  # 公共配置
+  model_path: "E:\\work\\roof-detect\\model\\sam3"
+  device: "auto"  # "cuda", "cpu", 或 "auto" (自动检测)
+  image_path: "https://djicloudapiyy.oss-cn-chengdu.aliyuncs.com/"
+  # AutoLabel 服务配置
+  label_service:
+    
+    inference:
+      threshold: 0.25
+      mask_threshold: 0.3
+      default_class_id: 0
+
+  # GeoLabel 服务配置
+  geo_service:
+    inference:
+      threshold: 0.25
+      mask_threshold: 0.3
+
+  # ChangeDetection 服务配置 (新增)
+  change_detection_service:
+    pe_model_path: "E:\\work\\roof-detect\\model\\PE\\PE-Core-L14-336.pt"  # PE 模型路径
+    output_dir: "./results_change_detection"  # 结果输出目录
+    pred_iou_thresh: 0.5                   # SAM3 置信度阈值
+    sem_dist_thresh: 0.10                     # 语义距离阈值
+    overlap_filter_thresh: 0.6                # 重叠掩码过滤阈值（IoU > 此值时移除）
+    concepts: ["building", "road"]            # 检测概念
+    return_base64: false                      # 是否返回 base64 编码的图片 (改为 false 避免 MQTT 消息过大)
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  show_payload: false  # 是否显示完整的消息内容
