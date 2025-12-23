@@ -185,6 +185,23 @@ class Config:
     def change_detection_return_base64(self):
         return self.get('ai.change_detection_service.return_base64', False)
 
+    # OSS 配置
+    @property
+    def change_detection_oss_access_key_id(self):
+        return self.get('ai.change_detection_service.oss.access_key_id', '')
+
+    @property
+    def change_detection_oss_access_key_secret(self):
+        return self.get('ai.change_detection_service.oss.access_key_secret', '')
+
+    @property
+    def change_detection_oss_endpoint(self):
+        return self.get('ai.change_detection_service.oss.endpoint', '')
+
+    @property
+    def change_detection_oss_bucket_name(self):
+        return self.get('ai.change_detection_service.oss.bucket_name', '')
+
     # ==================== 日志配置 ====================
     @property
     def log_level(self):
