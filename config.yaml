@@ -58,11 +58,10 @@ ai:
   change_detection_service:
     pe_model_path: "E:\\work\\roof-detect\\model\\PE\\PE-Core-L14-336.pt"  # PE 模型路径
     output_dir: "./results_change_detection"  # 结果输出目录
-    pred_iou_thresh: 0.5                   # SAM3 置信度阈值
-    sem_dist_thresh: 0.10                     # 语义距离阈值
-    overlap_filter_thresh: 0.6                # 重叠掩码过滤阈值（IoU > 此值时移除）
-    concepts: ["building", "road"]            # 检测概念
-    return_base64: false                      # 是否返回 base64 编码的图片 (改为 false 避免 MQTT 消息过大)
+    pred_iou_thresh: 0.30                      # SAM3 置信度阈值 (与独立脚本一致)
+    sem_dist_thresh: 0.20                      # 语义距离阈值 (与独立脚本一致: 0.20)
+    concepts: ["building", "road"]             # 检测概念
+    return_base64: false                       # 是否返回 base64 编码的图片
 
     # 阿里云 OSS 配置 (建议通过环境变量设置，不要在此硬编码密钥)
     oss:
