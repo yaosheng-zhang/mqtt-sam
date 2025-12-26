@@ -103,7 +103,12 @@ async def predict_gaussian_splatting(request: PredictRequest):
                 missing_images.append(img_path)
 
         if missing_images:
-            error_msg = f"以下图片不存在: {', '.join(missing_images)}"
+            error_msg = f"以下图片不存在 (共 {len(missing_images)} 个):"
+            for img in missing_images[:5]:  # 只显示前5个
+                error_msg += f"\n  - {img}"
+            if len(missing_images) > 5:
+                error_msg += f"\n  ... 还有 {len(missing_images) - 5} 个"
+
             logger.error(f"[Task {task_id}] {error_msg}")
             return PredictResponse(
                 success=False,

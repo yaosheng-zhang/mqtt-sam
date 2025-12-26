@@ -121,6 +121,62 @@ class OSSUploader:
         """
         return self.bucket is not None
 
+    def download_file(self, oss_url, local_file_path):
+        """
+        从 OSS 下载文件到本地
+
+        Args:
+            oss_url: OSS 文件 URL (可以是完整 URL 或相对路径)
+            local_file_path: 本地文件保存路径
+
+        Returns:
+            bool: 成功返回 True，失败返回 False
+        """
+        if self.bucket is None:
+            print(f"[OSS] 客户端未初始化，无法下载")
+            return False
+
+        try:
+            # 从完整 URL 中提取相对路径
+            # URL 格式: https://{bucket}.{endpoint}/{path}
+            if oss_url.startswith('http://') or oss_url.startswith('https://'):
+                # 提取路径部分
+                url_parts = oss_url.split('/', 3)
+                if len(url_parts) >= 4:
+                    oss_relative_path = url_parts[3]
+                else:
+                    print(f"[OSS] URL 格式不正确: {oss_url}")
+                    return False
+            else:
+                # 已经是相对路径
+                oss_relative_path = oss_url
+
+            # 确保本地目录存在
+            local_dir = os.path.dirname(local_file_path)
+            if local_dir:
+                os.makedirs(local_dir, exist_ok=True)
+
+            # 下载文件
+            self.bucket.get_object_to_file(oss_relative_path, local_file_path)
+
+            if os.path.exists(local_file_path):
+                print(f"[OSS] 文件下载成功")
+                print(f"   OSS路径: {oss_relative_path}")
+                print(f"   本地路径: {local_file_path}")
+                return True
+            else:
+                print(f"[OSS] 文件下载失败: 本地文件不存在")
+                return False
+
+        except oss2.exceptions.NoSuchKey:
+            print(f"[OSS] 文件不存在: {oss_url}")
+            return False
+        except Exception as e:
+            print(f"[OSS] 下载异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
 
 def create_oss_uploader_from_config(config, service_type="change_detection"):
     """
