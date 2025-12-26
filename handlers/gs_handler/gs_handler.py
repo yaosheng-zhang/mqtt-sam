@@ -4,12 +4,15 @@ GS (Gaussian Splatting) Handler
 """
 from ..base_handler import MessageHandler
 from datetime import datetime
-from utils import create_oss_uploader_from_config, convert_directory_ply_to_sog
+from utils import (
+    create_oss_uploader_from_config,
+    convert_directory_ply_to_sog,
+    download_images_batch,
+    cleanup_temp_dir
+)
 import requests
 import os
 import glob
-import tempfile
-import shutil
 
 
 class GSHandler(MessageHandler):
@@ -63,68 +66,29 @@ class GSHandler(MessageHandler):
             print(f"[GS] 开始处理 Gaussian Splatting:")
             print(f"   输入图片数量: {len(input_images)}")
 
-            # 2. 处理图片路径并下载到本地
+            # 2. 下载图片到本地（支持混合本地路径和远程 URL）
             base_path = self.config.ai_image_path or ""
-
-            # 创建临时目录存放下载的图片
-            temp_download_dir = tempfile.mkdtemp(prefix="gs_downloads_")
-            local_image_paths = []
+            temp_download_dir = None
 
             try:
-                for img_path in input_images:
-                    # 拼接完整 URL
-                    if img_path.startswith(('http://', 'https://')):
-                        full_url = img_path
-                    else:
-                        # 相对路径拼接为完整 URL
-                        full_url = os.path.join(base_path, img_path) if base_path and not base_path.endswith('/') else base_path + img_path
-
-                    print(f"   图片: {img_path} -> {full_url}")
-
-                    # 判断是 OSS URL 还是本地文件
-                    if full_url.startswith(('http://', 'https://')):
-                        # OSS URL - 需要下载到本地
-                        if not self.oss_uploader.is_available():
-                            error_msg = "OSS 上传器未配置，无法下载远程图片"
-                            print(f"[GS] {error_msg}")
-                            shutil.rmtree(temp_download_dir, ignore_errors=True)
-                            self._publish_error(dev_id, error_msg, publish)
-                            return
-
-                        # 生成本地文件名
-                        filename = os.path.basename(img_path)
-                        local_path = os.path.join(temp_download_dir, filename)
-
-                        # 下载文件
-                        success = self.oss_uploader.download_file(full_url, local_path)
-                        if not success:
-                            error_msg = f"OSS 图片下载失败: {full_url}"
-                            print(f"[GS] {error_msg}")
-                            shutil.rmtree(temp_download_dir, ignore_errors=True)
-                            self._publish_error(dev_id, error_msg, publish)
-                            return
-
-                        local_image_paths.append(local_path)
-
-                    else:
-                        # 本地文件路径
-                        if not os.path.exists(full_url):
-                            error_msg = f"本地图片文件不存在: {full_url}"
-                            print(f"[GS] {error_msg}")
-                            shutil.rmtree(temp_download_dir, ignore_errors=True)
-                            self._publish_error(dev_id, error_msg, publish)
-                            return
-
-                        local_image_paths.append(full_url)
-
+                local_image_paths, temp_download_dir = download_images_batch(
+                    image_paths=input_images,
+                    base_url=base_path
+                )
                 print(f"[GS] 图片准备完成，本地图片数量: {len(local_image_paths)}")
 
+            except (RuntimeError, FileNotFoundError) as e:
+                error_msg = str(e)
+                print(f"[GS] {error_msg}")
+                cleanup_temp_dir(temp_download_dir)
+                self._publish_error(dev_id, error_msg, publish)
+                return
             except Exception as e:
                 error_msg = f"图片下载失败: {str(e)}"
                 print(f"[GS] {error_msg}")
                 import traceback
                 traceback.print_exc()
-                shutil.rmtree(temp_download_dir, ignore_errors=True)
+                cleanup_temp_dir(temp_download_dir)
                 self._publish_error(dev_id, error_msg, publish)
                 return
 
@@ -142,19 +106,19 @@ class GSHandler(MessageHandler):
             except requests.exceptions.ConnectionError:
                 error_msg = f"无法连接到 Sharp API 服务 ({self.api_url})，请确保服务已启动"
                 print(f"[GS] {error_msg}")
-                shutil.rmtree(temp_download_dir, ignore_errors=True)
+                cleanup_temp_dir(temp_download_dir)
                 self._publish_error(dev_id, error_msg, publish)
                 return
             except requests.exceptions.Timeout:
                 error_msg = f"Sharp API 调用超时（超过 {self.config.gs_api_timeout} 秒）"
                 print(f"[GS] {error_msg}")
-                shutil.rmtree(temp_download_dir, ignore_errors=True)
+                cleanup_temp_dir(temp_download_dir)
                 self._publish_error(dev_id, error_msg, publish)
                 return
             except Exception as e:
                 error_msg = f"Sharp API 调用失败: {str(e)}"
                 print(f"[GS] {error_msg}")
-                shutil.rmtree(temp_download_dir, ignore_errors=True)
+                cleanup_temp_dir(temp_download_dir)
                 self._publish_error(dev_id, error_msg, publish)
                 return
 
@@ -162,12 +126,12 @@ class GSHandler(MessageHandler):
             if not api_result.get("success"):
                 error_msg = api_result.get("error", "Sharp API 预测失败")
                 print(f"[GS] {error_msg}")
-                shutil.rmtree(temp_download_dir, ignore_errors=True)
+                cleanup_temp_dir(temp_download_dir)
                 self._publish_error(dev_id, error_msg, publish)
                 return
 
             # 清理临时下载目录
-            shutil.rmtree(temp_download_dir, ignore_errors=True)
+            cleanup_temp_dir(temp_download_dir)
 
             output_path = api_result.get("output_path")
             task_id = api_result.get("task_id")
