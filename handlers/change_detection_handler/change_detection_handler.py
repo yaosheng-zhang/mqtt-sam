@@ -6,12 +6,12 @@ from ..base_handler import MessageHandler
 from .change_detector import ChangeDetector
 from .sam3_mask_generator import Sam3MaskGenerator
 from datetime import datetime
+from utils import create_oss_uploader_from_config
 import cv2
 import os
 import base64
 import tempfile
 import numpy as np
-import oss2
 
 
 class ChangeDetectionHandler(MessageHandler):
@@ -41,31 +41,8 @@ class ChangeDetectionHandler(MessageHandler):
         self.output_dir = config.change_detection_output_dir
         os.makedirs(self.output_dir, exist_ok=True)
 
-        # 阿里云 OSS 配置（从配置文件读取）
-        self.oss_config = {
-            "access_key_id": config.change_detection_oss_access_key_id,
-            "access_key_secret": config.change_detection_oss_access_key_secret,
-            "endpoint": config.change_detection_oss_endpoint,
-            "bucket_name": config.change_detection_oss_bucket_name,
-        }
-
-        # 初始化 OSS 客户端
-        try:
-            auth = oss2.Auth(
-                self.oss_config["access_key_id"],
-                self.oss_config["access_key_secret"]
-            )
-            self.oss_bucket = oss2.Bucket(
-                auth,
-                self.oss_config["endpoint"],
-                self.oss_config["bucket_name"]
-            )
-            print(f"[ChangeDetection] OSS 客户端初始化成功")
-            print(f"   Bucket: {self.oss_config['bucket_name']}")
-            print(f"   Endpoint: {self.oss_config['endpoint']}")
-        except Exception as e:
-            print(f"[警告] OSS 客户端初始化失败: {e}")
-            self.oss_bucket = None
+        # 初始化 OSS 上传器（使用公共工具）
+        self.oss_uploader = create_oss_uploader_from_config(config, service_type="change_detection")
 
         print(f"[ChangeDetection] 初始化完成")
         print(f"   检测概念: {config.change_detection_concepts}")
@@ -232,7 +209,7 @@ class ChangeDetectionHandler(MessageHandler):
 
     def _upload_to_oss(self, local_file_path, oss_relative_path):
         """
-        上传文件到阿里云 OSS
+        上传文件到阿里云 OSS（使用公共上传器）
 
         Args:
             local_file_path: 本地文件路径
@@ -241,30 +218,7 @@ class ChangeDetectionHandler(MessageHandler):
         Returns:
             str: 成功时返回 OSS 相对路径，失败时返回 None
         """
-        if self.oss_bucket is None:
-            print(f"[ChangeDetection] OSS 客户端未初始化，跳过上传")
-            return None
-
-        try:
-            # 上传文件到 OSS
-            with open(local_file_path, 'rb') as f:
-                result = self.oss_bucket.put_object(oss_relative_path, f)
-
-            # 检查上传状态
-            if result.status == 200:
-                print(f"[ChangeDetection] 文件上传成功")
-                print(f"   本地路径: {local_file_path}")
-                print(f"   OSS路径: {oss_relative_path}")
-                return oss_relative_path
-            else:
-                print(f"[ChangeDetection] 文件上传失败，状态码: {result.status}")
-                return None
-
-        except Exception as e:
-            print(f"[ChangeDetection] OSS 上传异常: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+        return self.oss_uploader.upload_file(local_file_path, oss_relative_path)
 
     def _publish_error(self, dev_id, error_msg, publish):
         """发布错误消息"""

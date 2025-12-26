@@ -121,6 +121,19 @@ class Config:
         suffix = self.get('mqtt.topics.change_detection_service.publish_suffix', '/ChangeDetect_Res')
         return f"{prefix}/{dev_id}{suffix}"
 
+    # GaussianSplatting 服务主题 (新增)
+    @property
+    def gs_subscribe_topic(self):
+        prefix = self.mqtt_topic_prefix
+        dev_id = self.mqtt_dev_id
+        suffix = self.get('mqtt.topics.gs_service.subscribe_suffix', '/GS')
+        return f"{prefix}/{dev_id}{suffix}"
+
+    def get_gs_response_topic(self, dev_id):
+        prefix = self.mqtt_topic_prefix
+        suffix = self.get('mqtt.topics.gs_service.publish_suffix', '/GS_Res')
+        return f"{prefix}/{dev_id}{suffix}"
+
     # ==================== AI 公共配置 ====================
     @property
     def ai_model_path(self):
@@ -201,6 +214,50 @@ class Config:
     @property
     def change_detection_oss_bucket_name(self):
         return self.get('ai.change_detection_service.oss.bucket_name', '')
+
+    # ==================== GaussianSplatting 服务配置 (新增) ====================
+    # API 配置
+    @property
+    def gs_api_host(self):
+        return self.get('ai.gs_service.api.host', '127.0.0.1')
+
+    @property
+    def gs_api_port(self):
+        return self.get('ai.gs_service.api.port', 8000)
+
+    @property
+    def gs_api_timeout(self):
+        return self.get('ai.gs_service.api.timeout', 600)
+
+    # Sharp 配置
+    @property
+    def gs_sharp_python_path(self):
+        return self.get_required('ai.gs_service.sharp_python_path')
+
+    @property
+    def gs_output_dir(self):
+        return self.get('ai.gs_service.output_dir', './results_gs')
+
+    @property
+    def gs_predict_timeout(self):
+        return self.get('ai.gs_service.predict_timeout', 600)
+
+    # OSS 配置
+    @property
+    def gs_oss_access_key_id(self):
+        return self.get('ai.gs_service.oss.access_key_id', '')
+
+    @property
+    def gs_oss_access_key_secret(self):
+        return self.get('ai.gs_service.oss.access_key_secret', '')
+
+    @property
+    def gs_oss_endpoint(self):
+        return self.get('ai.gs_service.oss.endpoint', '')
+
+    @property
+    def gs_oss_bucket_name(self):
+        return self.get('ai.gs_service.oss.bucket_name', '')
 
     # ==================== 日志配置 ====================
     @property
